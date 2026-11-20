@@ -1,0 +1,488 @@
+{
+  "schemaVersion": 1,
+  "id": "fried-chicken-factory",
+  "title": "Fried Chicken Factory",
+  "summary": "Crispy chicken, Nashville hot oil, chipotle-lime crema, vinegar slaw, and pickled onions.",
+  "servings": "4 generous portions",
+  "prep": "2–8 hr marinade",
+  "cook": "1½–2 hr prep & frying",
+  "defaultDinner": "18:00",
+  "shoppingList": [
+    {
+      "name": "Meat & dairy",
+      "items": [
+        {
+          "id": "0-0",
+          "name": "Broilerin paistileike, maustamaton",
+          "amount": "1.5 kg"
+        },
+        {
+          "id": "0-1",
+          "name": "Piimä",
+          "amount": "5 dl"
+        },
+        {
+          "id": "0-2",
+          "name": "Ranskankerma",
+          "amount": "200 g"
+        },
+        {
+          "id": "0-3",
+          "name": "Cheddarjuusto",
+          "amount": "150–200 g"
+        }
+      ]
+    },
+    {
+      "name": "Produce",
+      "items": [
+        {
+          "id": "1-0",
+          "name": "Lime",
+          "amount": "4"
+        },
+        {
+          "id": "1-1",
+          "name": "Valkokaali",
+          "amount": "400 g"
+        },
+        {
+          "id": "1-2",
+          "name": "Porkkana",
+          "amount": "1 large"
+        },
+        {
+          "id": "1-3",
+          "name": "Punasipuli",
+          "amount": "3 (use 2½)"
+        },
+        {
+          "id": "1-4",
+          "name": "Valkosipuli",
+          "amount": "1 clove"
+        },
+        {
+          "id": "1-5",
+          "name": "Jäävuorisalaatti",
+          "amount": "½ head"
+        },
+        {
+          "id": "1-6",
+          "name": "Tuore korianteri",
+          "amount": "1 bunch"
+        },
+        {
+          "id": "1-7",
+          "name": "Kevätsipuli",
+          "amount": "1 bunch"
+        }
+      ]
+    },
+    {
+      "name": "Bread & tortillas",
+      "items": [
+        {
+          "id": "2-0",
+          "name": "Hampurilaissämpylät",
+          "amount": "4"
+        },
+        {
+          "id": "2-1",
+          "name": "Pienet tortillaletut",
+          "amount": "8"
+        },
+        {
+          "id": "2-2",
+          "name": "Isot tortillaletut",
+          "amount": "4"
+        }
+      ]
+    },
+    {
+      "name": "Pantry & jars",
+      "items": [
+        {
+          "id": "3-0",
+          "name": "Rypsiöljy",
+          "amount": "~1.5–2 l for frying + 1 tbsp"
+        },
+        {
+          "id": "3-1",
+          "name": "Vehnäjauho",
+          "amount": "350 g"
+        },
+        {
+          "id": "3-2",
+          "name": "Maissitärkkelys",
+          "amount": "150 g"
+        },
+        {
+          "id": "3-3",
+          "name": "Leivinjauhe",
+          "amount": "2 tsp"
+        },
+        {
+          "id": "3-4",
+          "name": "Salt",
+          "amount": "32 g + 2½ tsp, plus to taste"
+        },
+        {
+          "id": "3-5",
+          "name": "Valkosipulijauhe",
+          "amount": "5 tsp"
+        },
+        {
+          "id": "3-6",
+          "name": "Savupaprikajauhe",
+          "amount": "3 tsp"
+        },
+        {
+          "id": "3-7",
+          "name": "Mustapippuri",
+          "amount": "1 tsp + to taste"
+        },
+        {
+          "id": "3-8",
+          "name": "Paprikajauhe",
+          "amount": "2 tsp"
+        },
+        {
+          "id": "3-9",
+          "name": "Sipulijauhe",
+          "amount": "1 tsp"
+        },
+        {
+          "id": "3-10",
+          "name": "Cayennepippuri",
+          "amount": "2–3 tbsp + ½–1 tsp"
+        },
+        {
+          "id": "3-11",
+          "name": "Fariinisokeri",
+          "amount": "1 tbsp"
+        },
+        {
+          "id": "3-12",
+          "name": "Sugar",
+          "amount": "40 g + 2 tsp"
+        },
+        {
+          "id": "3-13",
+          "name": "Hot sauce",
+          "amount": "2 tbsp"
+        },
+        {
+          "id": "3-14",
+          "name": "Majoneesi",
+          "amount": "100 g"
+        },
+        {
+          "id": "3-15",
+          "name": "Chipotle-chilit adobokastikkeessa",
+          "amount": "1–2 chilies + 1 tbsp sauce"
+        },
+        {
+          "id": "3-16",
+          "name": "Omenaviinietikka",
+          "amount": "45 ml"
+        },
+        {
+          "id": "3-17",
+          "name": "Väkiviinaetikka (10%)",
+          "amount": "50 ml"
+        },
+        {
+          "id": "3-18",
+          "name": "Maustekurkut",
+          "amount": "1 jar"
+        },
+        {
+          "id": "3-19",
+          "name": "Jalapeñot (säilyke)",
+          "amount": "1 jar"
+        }
+      ]
+    },
+    {
+      "name": "Optional & substitutions",
+      "items": [
+        {
+          "id": "4-0",
+          "name": "Butter",
+          "amount": "For toasting buns"
+        },
+        {
+          "id": "4-1",
+          "name": "Chipotle-chilijauhe",
+          "amount": "1–2 tsp if replacing chipotle in adobo"
+        },
+        {
+          "id": "4-2",
+          "name": "Savupaprikajauhe",
+          "amount": "1 extra tsp for the substitute"
+        },
+        {
+          "id": "4-3",
+          "name": "Hunaja",
+          "amount": "1 tsp for the substitute"
+        }
+      ]
+    }
+  ],
+  "cards": [
+    {
+      "id": "marinate",
+      "title": "Marinate chicken",
+      "timing": "2–8 hours ahead",
+      "ingredients": [
+        "1.5 kg broilerin paistileike, maustamaton (boneless thigh)",
+        "5 dl piimä",
+        "Hot sauce (e.g. Tabasco), 2 tbsp",
+        "Salt, 20 g",
+        "Valkosipulijauhe, 2 tsp",
+        "Savupaprikajauhe, 1 tsp",
+        "Mustapippuri, 1 tsp"
+      ],
+      "steps": [
+        "Mix piimä, 20 g salt, hot sauce, garlic powder, smoked paprika and pepper.",
+        "Cut each paistileike into 2–3 substantial pieces; keep some large enough for sandwiches.",
+        "Coat in marinade, cover and refrigerate for at least 2 hours (ideally 4–8)."
+      ],
+      "notes": [
+        "Bigger pieces stay juicier and can be chopped after frying for tacos."
+      ]
+    },
+    {
+      "id": "onions",
+      "title": "Quick-pickle onions",
+      "timing": "≥30 minutes ahead",
+      "ingredients": [
+        "Punasipuli, 2",
+        "Väkiviinaetikka (10%), 50 ml",
+        "Water, 150 ml",
+        "Sugar, 40 g",
+        "Salt, 1 tsp"
+      ],
+      "steps": [
+        "Thinly slice 2 red onions and place in a heatproof container.",
+        "Heat vinegar, water, sugar and salt until dissolved.",
+        "Pour over onions. Cool, then refrigerate. Ready in ~30–45 minutes."
+      ],
+      "notes": [
+        "Slice very thinly for even acidity and a pleasant bite."
+      ]
+    },
+    {
+      "id": "slaw",
+      "title": "Vinegar slaw",
+      "timing": "~30 minutes ahead",
+      "ingredients": [
+        "Valkokaali, 400 g",
+        "Porkkana, 1 large",
+        "Punasipuli, ½",
+        "Omenaviinietikka, 45 ml",
+        "Lime, ½ (juice)",
+        "Sugar, 2 tsp",
+        "Salt, 1 tsp",
+        "Rypsiöljy, 1 tbsp",
+        "Black pepper"
+      ],
+      "steps": [
+        "Finely shred cabbage, carrot and ½ red onion.",
+        "Whisk vinegar, lime juice, sugar, salt, oil and black pepper.",
+        "Toss together; chill 20–30 minutes. Taste and adjust acidity/salt."
+      ],
+      "notes": [
+        "Don't massage the cabbage hard; preserve the crunch."
+      ]
+    },
+    {
+      "id": "crema",
+      "title": "Chipotle crema",
+      "timing": "ahead",
+      "ingredients": [
+        "Ranskankerma, 200 g",
+        "Majoneesi, 100 g",
+        "Chipotle-chilit adobokastikkeessa, 1–2 chilies + 1 tbsp sauce",
+        "Lime, 1 (juice and zest)",
+        "Valkosipuli, 1 clove",
+        "Salt to taste",
+        "If no chipotle in adobo: 1–2 tsp chipotle-chilijauhetta, 1 tsp savupaprikajauhetta and 1 tsp hunajaa. Adjust to taste."
+      ],
+      "steps": [
+        "Blend or finely mince chipotle and garlic.",
+        "Combine with ranskankerma, mayo, lime juice/zest and salt.",
+        "Chill until serving."
+      ],
+      "notes": [
+        "Make it slightly more acidic and punchy than a standalone dip; it needs to cut through fried chicken."
+      ]
+    },
+    {
+      "id": "fry",
+      "title": "Dredge & fry chicken",
+      "timing": "just before serving",
+      "ingredients": [
+        "Vehnäjauho, 350 g",
+        "Maissitärkkelys, 150 g",
+        "Leivinjauhe, 2 tsp",
+        "Salt, 12 g",
+        "Paprikajauhe, 2 tsp",
+        "Valkosipulijauhe, 2 tsp",
+        "Sipulijauhe, 1 tsp",
+        "Cayennepippuri, ½–1 tsp",
+        "Rypsiöljy, ~1.5–2 l (use enough for safe frying depth; never fill pot more than halfway)"
+      ],
+      "steps": [
+        "Mix all dredge ingredients thoroughly.",
+        "Drizzle 4–5 tbsp of the chicken marinade into the flour mix; rub lightly with fingers to create small damp clumps. These become the craggy crust.",
+        "Lift chicken from marinade, let excess drip off, and press firmly into dredge on every side.",
+        "Rest coated pieces on a rack for 10–15 minutes.",
+        "Heat oil to 175°C in a heavy pot; do not fill more than halfway.",
+        "Fry in small batches, keeping oil around 165–175°C, typically 5–8 minutes depending on thickness.",
+        "Check thickest pieces reach ≥75°C internal temperature. Drain on a wire rack, uncovered."
+      ],
+      "notes": [
+        "Don't crowd the pot; a major oil-temperature drop makes greasy crust.",
+        "Let the crust set for ~60–90 seconds before moving the chicken.",
+        "Avoid paper towels or covering hot chicken: trapped steam softens the crust.",
+        "If necessary, hold briefly on a rack in a ~90°C oven; serve promptly."
+      ],
+      "callout": "Heat oil to 175°C · Fry at 165–175°C · Chicken must reach ≥75°C internally"
+    },
+    {
+      "id": "hot-oil",
+      "title": "Nashville hot oil",
+      "timing": "during final frying batches",
+      "ingredients": [
+        "Cayennepippuri, 2–3 tbsp",
+        "Savupaprikajauhe, 2 tsp",
+        "Fariinisokeri, 1 tbsp",
+        "Valkosipulijauhe, 1 tsp",
+        "Salt, ½ tsp",
+        "Hot frying oil, 100 ml (from the frying pot)"
+      ],
+      "steps": [
+        "Combine cayenne, smoked paprika, brown sugar, garlic powder and salt in a heatproof bowl.",
+        "Carefully stir in 100 ml hot frying oil after removing the oil from the heat.",
+        "Keep a brush beside the bowl so diners can coat their own chicken."
+      ],
+      "notes": [
+        "Stir before each brushing; the spices settle. Start with 2 tbsp cayenne if unsure about heat."
+      ]
+    },
+    {
+      "id": "assembly",
+      "title": "Set out the assembly station",
+      "ingredients": [
+        "Hampurilaissämpylät (briossi/peruna), 4",
+        "Pienet tortillaletut, 8",
+        "Isot tortillaletut, 4",
+        "Cheddarjuusto, 150–200 g",
+        "Maustekurkut, 1 jar",
+        "Jalapeñot (säilyke), 1 jar",
+        "Jäävuorisalaatti, ½ head",
+        "Tuore korianteri, 1 bunch",
+        "Kevätsipuli, 1 bunch",
+        "Lime, 2 extra (wedges)"
+      ],
+      "steps": [
+        "Chicken: plain crispy pieces, Nashville oil + brush.",
+        "Sauces & acidic toppings: chipotle crema, slaw, pickled onions, dill pickles, jalapeños, lime wedges.",
+        "Fresh toppings: shredded iceberg, coriander, sliced spring onions, cheddar.",
+        "Carbs: butter-toasted buns, warmed small tortillas, warmed large tortillas."
+      ],
+      "notes": [
+        "Keep tortillas wrapped in a clean towel. Toast filled burritos seam-side down if desired. Avoid overloading them with wet toppings."
+      ]
+    }
+  ],
+  "timeline": [
+    {
+      "offsets": [
+        -300
+      ],
+      "label": "Marinate chicken",
+      "cardId": "marinate"
+    },
+    {
+      "offsets": [
+        -150
+      ],
+      "label": "Pickle onions",
+      "cardId": "onions"
+    },
+    {
+      "offsets": [
+        -90
+      ],
+      "label": "Make crema",
+      "cardId": "crema"
+    },
+    {
+      "offsets": [
+        -75
+      ],
+      "label": "Make slaw",
+      "cardId": "slaw"
+    },
+    {
+      "offsets": [
+        -60
+      ],
+      "label": "Chop toppings and set up",
+      "cardId": "assembly"
+    },
+    {
+      "offsets": [
+        -45
+      ],
+      "label": "Mix dredge",
+      "cardId": "fry"
+    },
+    {
+      "offsets": [
+        -35
+      ],
+      "label": "Dredge chicken; heat oil",
+      "cardId": "fry"
+    },
+    {
+      "offsets": [
+        -20
+      ],
+      "label": "Start frying in batches",
+      "cardId": "fry"
+    },
+    {
+      "offsets": [
+        -10
+      ],
+      "label": "Mix Nashville hot oil",
+      "cardId": "hot-oil"
+    },
+    {
+      "offsets": [
+        -5
+      ],
+      "label": "Warm tortillas and toast buns",
+      "cardId": "assembly"
+    },
+    {
+      "offsets": [
+        0,
+        10
+      ],
+      "label": "Serve as batches finish",
+      "cardId": "assembly"
+    }
+  ],
+  "sideIds": [
+    "slaw",
+    "onions",
+    "crema",
+    "hot-oil",
+    "assembly"
+  ],
+  "safety": "Keep raw chicken and its marinade separate from ready-to-eat ingredients. Discard unused marinade and dredge after coating. Use a thermometer for chicken and frying oil."
+}
