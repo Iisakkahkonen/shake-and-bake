@@ -76,7 +76,8 @@ async function extract(text, apiKey) {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
       signal: AbortSignal.timeout(25_000),
-      redirect: 'error',
+      // Workers only supports manual and follow. Never forward the API key on a redirect.
+      redirect: 'manual',
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SYSTEM }] },
         contents: [{ role: 'user', parts: [{ text }] }],
@@ -91,6 +92,9 @@ async function extract(text, apiKey) {
   } catch (error) {
     if (error.name === 'TimeoutError') throw error;
     throw new HttpError(502, 'The server could not reach Gemini. Try again.');
+  }
+  if (response.status >= 300 && response.status < 400) {
+    throw new HttpError(502, 'Gemini returned an unexpected redirect.');
   }
   if (response.status === 429) throw new HttpError(429, 'Gemini is at its quota. Try again later.');
   if (!response.ok) throw new HttpError(502, 'Gemini is unavailable or the server key needs checking.');

@@ -128,6 +128,7 @@ test('Gemini gets source text in a separate message and no tools', async (t) => 
     const body = JSON.parse(init.body);
     assert.equal(new URL(url).hostname, 'generativelanguage.googleapis.com');
     assert.equal(init.headers['x-goog-api-key'], env.GEMINI_API_KEY);
+    assert.equal(init.redirect, 'manual');
     assert.deepEqual(body.contents, [{ role: 'user', parts: [{ text }] }]);
     assert.match(body.systemInstruction.parts[0].text, /untrusted source material/);
     assert.equal(body.tools, undefined);
@@ -141,6 +142,15 @@ test('Gemini gets source text in a separate message and no tools', async (t) => 
   assert.equal(response.headers.get('access-control-allow-origin'), origin);
   assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.equal((await response.json()).recipe.title, 'Roast carrots');
+  assert.equal(api.mock.callCount(), 1);
+});
+
+test('a provider redirect is rejected without another request', async (t) => {
+  const api = t.mock.method(globalThis, 'fetch', async () =>
+    new Response(null, { status: 307, headers: { Location: 'https://redirect.example' } }));
+  const response = await worker.fetch(request('Roast carrots'), env);
+  assert.equal(response.status, 502);
+  assert.equal((await response.json()).error, 'Gemini returned an unexpected redirect.');
   assert.equal(api.mock.callCount(), 1);
 });
 
