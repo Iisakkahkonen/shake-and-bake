@@ -233,3 +233,54 @@ test('provider refusals and unusable or malformed outputs do not make recipes', 
     mock.mock.restore();
   }
 });
+
+test('public reads work without a code and writes require the separate owner code', async () => {
+  const recipe = normalizeRecipe(sample());
+  const publishCode = 'separate-test-publishing-code-for-owner';
+  const recipes = new Map();
+  const publicationEnv = {
+    ...env,
+    RECIPE_PUBLISH_CODE: publishCode,
+    PUBLIC_RECIPES: {
+      getByName: () => ({
+        async fetch(url, { method, body }) {
+          const id = new URL(url).pathname.split('/')[2];
+          if (method === 'PUT') recipes.set(id, JSON.parse(body));
+          if (method === 'DELETE') recipes.delete(id);
+          if (method !== 'GET') return Response.json({ id });
+          if (!id) return Response.json([...recipes.values()].map(({ id, title, summary }) => ({ id, title, summary })));
+          return recipes.has(id) ? Response.json(recipes.get(id)) : new Response(null, { status: 404 });
+        }
+      })
+    }
+  };
+  const call = (method, path = '', body, token, requestOrigin = origin, bindings = publicationEnv) => worker.fetch(
+    new Request('https://parser.example/public-recipes' + path, {
+      method,
+      headers: {
+        Origin: requestOrigin, 'Content-Type': 'application/json',
+        ...(token ? { Authorization: 'Bearer ' + token } : {})
+      },
+      body: body === undefined ? undefined : JSON.stringify(body)
+    }),
+    bindings
+  );
+  const path = '/' + recipe.id;
+  const preflight = await call('OPTIONS', path);
+  assert.equal(preflight.status, 204);
+  assert.match(preflight.headers.get('Access-Control-Allow-Methods'), /PUT, DELETE/);
+  assert.equal((await call('PUT', path, recipe, code)).status, 401);
+  assert.equal((await call('PUT', path, recipe, publishCode, 'https://other.example')).status, 403);
+  assert.equal((await call('PUT', path, recipe, code, origin, { ...publicationEnv, RECIPE_PUBLISH_CODE: code })).status, 503);
+  assert.equal((await call('PUT', path, { ...recipe, text: 'private original' }, publishCode)).status, 422);
+  assert.equal((await call('PUT', path, { ...recipe, sideIds: ['missing-card'] }, publishCode)).status, 422);
+  assert.equal((await call('PUT', path, recipe, publishCode)).status, 200);
+  const updated = { ...recipe, title: 'Updated carrots' };
+  assert.equal((await call('PUT', path, updated, publishCode)).status, 200);
+  assert.deepEqual(await (await call('GET', path)).json(), updated);
+  assert.deepEqual(await (await call('GET')).json(), [{ id: recipe.id, title: updated.title, summary: '' }]);
+  assert.equal((await call('DELETE', path, undefined, code)).status, 401);
+  assert.equal((await call('DELETE', path, undefined, publishCode)).status, 200);
+  assert.equal((await call('GET', path)).status, 404);
+  assert.deepEqual(await (await call('GET')).json(), []);
+});

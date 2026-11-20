@@ -142,3 +142,19 @@ progress{accent-color:var(--green);height:.7rem;width:100%}
   .hero-photo { height: 100%; min-height: 17.5rem; }
   .home-content { grid-template-columns: 1.15fr .85fr; gap: clamp(1.6rem, 4vw, 3.4rem); }
 }
+
+.publication-controls { margin-bottom: 1rem; }
+.publication-controls summary { padding-inline: 0; }
+.publication-controls label { display: block; font-weight: 700; margin-top: .6rem; }
+.publication-controls input {
+  width: 100%;
+  max-width: 27rem;
+  min-height: 44px;
+  padding: .5rem .65rem;
+  border: 1px solid #b99e8b;
+  border-radius: .35rem;
+  background: var(--cream);
+  color: var(--ink);
+}
+.publication-controls a { color: var(--rust); font-weight: 700; }
+.publication-controls .recipe-status:not(:empty) { margin-bottom: .55rem; }

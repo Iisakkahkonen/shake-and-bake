@@ -8,12 +8,15 @@ Personal drafts and AI imports stay in this browser's site storage. The original
 
 ## Public recipes
 
-Repository collaborators manage the public shelf through [the recipes folder](https://github.com/Iisakkahkonen/shake-and-bake/tree/main/docs/recipes).
+### Publish from the app
 
-- To publish a reviewed recipe, open its cooking cards and choose **Download recipe JSON**. Commit the exported file under **docs/recipes/** using its filename. Add its **id**, **title**, and **summary** to **docs/recipes/index.json** to list it on Home. The export contains the normalized recipe. You can share the direct link with **?recipe=RECIPE-ID**.
-- To remove a recipe from the public site, remove its entry from **docs/recipes/index.json** and delete its matching recipe JSON in the same commit. Once GitHub Pages redeploys, its direct link stops working. Earlier commits in the public repository retain the file.
+In the Cloudflare dashboard for **shake-and-bake-parser**, open **Settings → Variables and Secrets**. Add an encrypted secret named **RECIPE_PUBLISH_CODE**. Use a separate random code of 32–128 characters using letters, digits, underscores, or hyphens. Save it in your password manager. Wrangler provisions the SQLite-backed **PUBLIC_RECIPES** storage when it deploys the Worker.
 
-The built-in **docs/recipes/fried-chicken-factory.json** is the first example of the versioned recipe format.
+Open a saved recipe's cooking cards and use **Shop → Publish or manage public copy**. Enter your publishing code, then choose **Publish recipe**. You can update the public copy here, open its public link, or unpublish it. You can also unpublish from **Manage publication** on the public recipe's **Shop** tab. The browser remembers your code for the tab session when available. Choose **Lock publishing** to clear it. Only the normalized cooking cards are published.
+
+### GitHub-hosted recipes
+
+Existing GitHub-hosted recipes keep their links. Repository collaborators manage them in [the recipes folder](https://github.com/Iisakkahkonen/shake-and-bake/tree/main/docs/recipes). To unpublish a GitHub-hosted recipe, remove its index entry and matching JSON file in the same commit. Earlier public Git commits retain the file.
 
 ## Set up Gemini conversion
 

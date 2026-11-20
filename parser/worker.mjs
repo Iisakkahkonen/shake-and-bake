@@ -1,7 +1,8 @@
-import { geminiSchema, normalizeRecipe, RecipeError } from './recipe.mjs';
+import { geminiSchema, normalizeRecipe, RecipeError, validPublicRecipe } from './recipe.mjs';
 
 const MAX_TEXT = 16_000;
 const MAX_BODY = 64 * 1024;
+const MAX_PUBLIC_BODY = 96 * 1024;
 const encoder = new TextEncoder();
 const PRIMARY_MODEL = 'gemini-3.1-flash-lite';
 const FALLBACK_MODEL = 'gemini-3.5-flash-lite';
@@ -26,12 +27,12 @@ class HttpError extends Error {
   }
 }
 
-async function readInput(request) {
+async function readJson(request, maxBytes) {
   if (request.headers.get('content-type')?.split(';')[0].trim().toLowerCase() !== 'application/json') {
     throw new HttpError(415, 'Send a JSON request.');
   }
   if (!request.body) throw new HttpError(400, 'Paste a recipe first.');
-  if (Number(request.headers.get('content-length')) > MAX_BODY) {
+  if (Number(request.headers.get('content-length')) > maxBytes) {
     throw new HttpError(413, 'This recipe is too long.');
   }
   const reader = request.body.getReader();
@@ -42,18 +43,21 @@ async function readInput(request) {
     const { value, done } = await reader.read();
     if (done) break;
     size += value.byteLength;
-    if (size > MAX_BODY) {
+    if (size > maxBytes) {
       await reader.cancel().catch(() => {});
       throw new HttpError(413, 'This recipe is too long.');
     }
     body += decoder.decode(value, { stream: true });
   }
-  let text;
   try {
-    text = JSON.parse(body + decoder.decode())?.text;
+    return JSON.parse(body + decoder.decode());
   } catch {
     throw new HttpError(400, 'Could not read the recipe request.');
   }
+}
+
+async function readInput(request) {
+  const text = (await readJson(request, MAX_BODY))?.text;
   if (typeof text !== 'string' || !text.trim()) throw new HttpError(400, 'Paste a recipe first.');
   if (text.length > MAX_TEXT) throw new HttpError(413, 'Use at most 16,000 characters.');
   return text;
@@ -165,6 +169,48 @@ async function extract(text, apiKey) {
   }
 }
 
+async function publicRecipes(request, env, pathname, allowed, headers, json) {
+  const match = /^\/public-recipes(?:\/([a-z0-9]+(?:-[a-z0-9]+)*))?$/.exec(pathname);
+  const id = match?.[1];
+  if (!match || id?.length > 80) return json(404, { error: 'Recipe not found.' });
+  const method = request.method;
+  if (method === 'OPTIONS') {
+    if (!allowed) return json(403, { error: 'This origin is not allowed.' });
+    headers.set('Access-Control-Allow-Methods', 'GET, PUT, DELETE');
+    headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return new Response(null, { status: 204, headers });
+  }
+  if (method !== 'GET' && (!id || !['PUT', 'DELETE'].includes(method))) {
+    return json(405, { error: 'This action is not supported.' });
+  }
+  if (!env.PUBLIC_RECIPES) return json(503, { error: 'Public recipes are temporarily unavailable.' });
+  try {
+    let body;
+    if (method !== 'GET') {
+      if (!allowed) return json(403, { error: 'This origin is not allowed.' });
+      const secret = env.RECIPE_PUBLISH_CODE;
+      if (!/^[A-Za-z0-9_-]{32,128}$/.test(secret ?? '') || secret === env.RECIPE_IMPORT_CODE) {
+        return json(503, { error: 'Set a separate RECIPE_PUBLISH_CODE secret in Cloudflare to enable publishing.' });
+      }
+      if (!await authorized(request.headers.get('authorization'), secret)) {
+        return json(401, { error: 'Enter the correct publishing code.' });
+      }
+      if (method === 'PUT') {
+        const recipe = await readJson(request, MAX_PUBLIC_BODY);
+        if (!validPublicRecipe(recipe, id)) return json(422, { error: 'This recipe could not be published. Check its saved cooking cards.' });
+        body = JSON.stringify(recipe);
+      }
+    }
+    const store = env.PUBLIC_RECIPES.getByName('public-catalog');
+    const response = await store.fetch('https://catalog.internal' + pathname, { method, body });
+    headers.set('Content-Type', 'application/json');
+    return new Response(response.body, { status: response.status, headers });
+  } catch (error) {
+    if (error instanceof HttpError) return json(error.status, { error: error.message });
+    return json(503, { error: 'Public recipes are temporarily unavailable. Try again.' });
+  }
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('origin');
@@ -172,7 +218,11 @@ export default {
     const headers = new Headers({ 'Cache-Control': 'no-store', Vary: 'Origin' });
     if (allowed) headers.set('Access-Control-Allow-Origin', origin);
     const json = (status, payload) => Response.json(payload, { status, headers });
-    if (new URL(request.url).pathname !== '/parse-recipe') return json(404, { error: 'Unknown route.' });
+    const pathname = new URL(request.url).pathname;
+    if (pathname === '/public-recipes' || pathname.startsWith('/public-recipes/')) {
+      return publicRecipes(request, env, pathname, allowed, headers, json);
+    }
+    if (pathname !== '/parse-recipe') return json(404, { error: 'Unknown route.' });
     if (!allowed) return json(403, { error: 'This origin is not allowed.' });
     if (request.method === 'OPTIONS') {
       headers.set('Access-Control-Allow-Methods', 'POST');

@@ -148,3 +148,41 @@ export function normalizeRecipe(extracted) {
     reviewNotes: [...new Set(reviewNotes)]
   };
 }
+
+const publicRecipeSchema = record({
+  schemaVersion: integer,
+  id: text,
+  title: text,
+  summary: text,
+  servings: text,
+  prep: text,
+  cook: text,
+  activeTime: text,
+  totalTime: text,
+  defaultDinner: text,
+  shoppingList: list(record({
+    name: text, items: list(record({ id: text, name: text, amount: text }, ['id', 'name', 'amount']), 40)
+  }, ['name', 'items']), 12),
+  cards: list(record({
+    id: text, title: text, timing: text, callout: text, ingredients: list(text, 40),
+    steps: list(text, 25), notes: list(text, 12)
+  }, ['id', 'title', 'ingredients', 'steps', 'notes']), 24),
+  timeline: list(record({ label: text, cardId: text, offsets: list(integer, 2) },
+    ['label', 'cardId', 'offsets']), 40),
+  sideIds: list(text, 24),
+  safety: text,
+  reviewNotes: list(text, 16)
+}, ['schemaVersion', 'id', 'title', 'defaultDinner', 'shoppingList', 'cards', 'timeline', 'sideIds']);
+
+export function validPublicRecipe(recipe, id) {
+  if (!matches(recipe, publicRecipeSchema) || recipe.schemaVersion !== 1 || recipe.id !== id ||
+      !recipe.title.trim() || !recipe.cards.length ||
+      !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(recipe.defaultDinner)) return false;
+  const cardIds = new Set(recipe.cards.map((card) => card.id));
+  return cardIds.size === recipe.cards.length &&
+    recipe.cards.every(({ id, title, steps }) => /^[a-z0-9-]{1,80}$/.test(id) &&
+      title.trim() && steps.some((step) => step.trim())) &&
+    recipe.sideIds.every((id) => cardIds.has(id)) &&
+    recipe.timeline.every(({ cardId, offsets }) => cardIds.has(cardId) && offsets.length &&
+      offsets.every((value) => value >= -10080 && value <= 1440) && offsets[0] <= offsets.at(-1));
+}

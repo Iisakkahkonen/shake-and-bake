@@ -1,11 +1,15 @@
 {
   "name": "shake-and-bake-parser",
-  "main": "worker.mjs",
+  "main": "entry.mjs",
   "compatibility_date": "2026-11-20",
   // APP_ORIGIN is the GitHub Pages origin, without a path or trailing slash.
   "vars": {
     "APP_ORIGIN": "https://iisakkahkonen.github.io"
   },
+  "durable_objects": {
+    "bindings": [{ "name": "PUBLIC_RECIPES", "class_name": "PublicRecipeStore" }]
+  },
+  "migrations": [{ "tag": "public-recipes-v1", "new_sqlite_classes": ["PublicRecipeStore"] }],
   "ratelimits": [
     {
       "name": "PARSE_LIMIT",

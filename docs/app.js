@@ -1,9 +1,12 @@
 const libraryKey = 'shake-and-bake:personal-recipes:v1';
 const featuredId = 'fried-chicken-factory';
 const recipeLocation = new URLSearchParams(location.search);
-const isRecipeLink = recipeLocation.has('local') || recipeLocation.has('recipe');
+const isRecipeLink = recipeLocation.has('local') || recipeLocation.has('recipe') || recipeLocation.has('published');
 const legacyRecipeHash = /^#(?:shop|timeline|cook|sides)(?:\/|$)/;
 const parserEndpoint = document.querySelector('meta[name="recipe-parser-endpoint"]')?.content.trim();
+
+const publicationEndpoint = parserEndpoint ? new URL('/public-recipes', parserEndpoint).href : '';
+const publishingSessionKey = 'shake-and-bake:publishing-code';
 
 function readPersonalRecipes() {
   return JSON.parse(localStorage.getItem(libraryKey) ?? '[]');
@@ -88,7 +91,124 @@ function recipeMetadata(recipe, source) {
   return [recipe.servings, ...times].filter(Boolean);
 }
 
-const renderRecipe = (recipe, source = '') => {
+function publicationControls(recipe, source, local) {
+  const details = node('details', { class: 'card-section publication-controls' });
+  const status = node('p', { class: 'recipe-status', role: 'status' });
+  const input = node('input', {
+    type: 'password', id: 'publishing-code', maxlength: '128',
+    autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false'
+  });
+  const publicLink = node('a', { href: recipeLink('published', recipe.id), text: 'Open public recipe' });
+  const endpoint = publicationEndpoint + '/' + recipe.id;
+  let code = '';
+  let publicationRevision = 0;
+  try { code = sessionStorage.getItem(publishingSessionKey) ?? ''; } catch {}
+  const credentials = node('div', {}, [node('label', { for: 'publishing-code', text: 'Publishing code' }), input]);
+  const forget = button('Lock publishing', () => {
+    rememberCode('');
+    input.focus();
+  }, { class: 'action' });
+  const publish = button('Publish recipe', () => changePublication('PUT'), { class: 'action primary' });
+  const unpublish = button('Unpublish recipe', () => {
+    confirmation.hidden = false;
+    cancel.focus();
+  }, { class: 'action' });
+  const cancel = button('Cancel', () => {
+    confirmation.hidden = true;
+    unpublish.focus();
+  }, { class: 'action' });
+  const confirm = button('Confirm unpublish', () => changePublication('DELETE'), { class: 'action primary' });
+  const confirmation = node('div', { hidden: '' }, [
+    node('p', { text: 'Remove this recipe from the public shelf and turn off its link?' }),
+    node('div', { class: 'actions' }, [confirm, cancel])
+  ]);
+  const actions = node('div', { class: 'actions' }, [
+    ...(local ? [publish] : []), unpublish, forget
+  ]);
+
+  function showCodeState() {
+    credentials.hidden = Boolean(code);
+    forget.hidden = !code;
+  }
+
+  function rememberCode(value) {
+    code = value;
+    input.value = '';
+    try {
+      if (code) sessionStorage.setItem(publishingSessionKey, code);
+      else sessionStorage.removeItem(publishingSessionKey);
+    } catch {}
+    showCodeState();
+  }
+
+  function showPublication(published) {
+    confirmation.hidden = true;
+    unpublish.hidden = !published;
+    publicLink.hidden = !published || !local;
+    publish.textContent = published ? 'Update public recipe' : 'Publish recipe';
+  }
+
+  async function changePublication(method) {
+    const entered = code || input.value.trim();
+    if (!/^[A-Za-z0-9_-]{32,128}$/.test(entered)) {
+      status.textContent = 'Enter your publishing code.';
+      input.focus();
+      return;
+    }
+    publicationRevision++;
+    const isPublish = method === 'PUT';
+    const headers = { Authorization: 'Bearer ' + entered };
+    if (isPublish) headers['Content-Type'] = 'application/json';
+    const buttons = [publish, unpublish, forget, confirm, cancel];
+    buttons.forEach((element) => { element.disabled = true; });
+    input.disabled = true;
+    status.textContent = isPublish ? 'Publishing…' : 'Unpublishing…';
+    try {
+      const response = await fetch(endpoint, {
+        method, headers, redirect: 'error', credentials: 'omit',
+        body: isPublish ? JSON.stringify({ ...recipe, ...sourceTiming(source) }) : undefined,
+        signal: AbortSignal.timeout(12000)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) rememberCode('');
+        status.textContent = result.error || 'Could not change publication.';
+        return;
+      }
+      rememberCode(entered);
+      showPublication(isPublish);
+      status.textContent = isPublish ? 'Published. Anyone with the link can open it.' : 'Removed from Public recipes.';
+    } catch {
+      status.textContent = 'Could not confirm the change. Try again.';
+    } finally {
+      buttons.forEach((element) => { element.disabled = false; });
+      input.disabled = false;
+    }
+  }
+
+  showCodeState();
+  showPublication(!local);
+  if (local) {
+    details.addEventListener('toggle', async () => {
+      if (!details.open || publish.disabled) return;
+      const revision = publicationRevision;
+      try {
+        const response = await fetch(endpoint, { signal: AbortSignal.timeout(8000) });
+        if (revision === publicationRevision && (response.ok || response.status === 404)) {
+          showPublication(response.ok);
+        }
+      } catch {}
+    });
+  }
+  details.append(node('summary', { text: local ? 'Publish or manage public copy' : 'Manage publication' }),
+    node('p', { class: 'muted', text: local
+      ? 'Anyone can view published cooking cards. Your original pasted text stays in My recipes.'
+      : 'Unpublishing removes this recipe from the public shelf and turns off its link.' }),
+    credentials, actions, confirmation, status, publicLink);
+  return details;
+}
+
+const renderRecipe = (recipe, source = '', published = false) => {
   const heading = document.querySelector('h1');
   const summary = document.querySelector('.summary');
   const meta = document.querySelector('.meta');
@@ -135,6 +255,9 @@ const renderRecipe = (recipe, source = '') => {
       main.append(node('div', { class: 'actions' }, [
         button('Download recipe JSON', () => downloadRecipe(recipe), { class: 'action' })
       ]));
+    }
+    if (publicationEndpoint && (recipeLocation.has('local') || published)) {
+      main.append(publicationControls(recipe, source, !published));
     }
     if (!shopItems.length) {
       main.append(title('Shopping list'), node('p', { text: 'No shopping list was available in the source.' }));
@@ -525,7 +648,7 @@ function renderHome() {
     node('h2', { id: 'public-recipes-title', text: 'Public recipes' }),
     catalog,
     node('a', {
-      class: 'catalog-management', text: 'Manage public recipes on GitHub',
+      class: 'catalog-management', text: 'Manage older GitHub-hosted recipes',
       href: 'https://github.com/Iisakkahkonen/shake-and-bake#public-recipes'
     })
   ]);
@@ -552,18 +675,28 @@ function renderHome() {
 
 async function loadPublicRecipes(catalog) {
   try {
-    const response = await fetch('./recipes/index.json');
-    if (!response.ok) throw new Error('Catalog request failed');
-    const recipes = await response.json();
-    const list = node('ul', { class: 'public-list' }, recipes.map(({ id, title, summary }) =>
+    const readCatalog = async (url, type) => {
+      const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!response.ok) throw new Error('Catalog request failed');
+      return (await response.json()).map((recipe) => ({ ...recipe, type }));
+    };
+    const results = await Promise.allSettled([
+      readCatalog('./recipes/index.json', 'recipe'),
+      ...(publicationEndpoint ? [readCatalog(publicationEndpoint, 'published')] : [])
+    ]);
+    const recipes = results.flatMap((result) => result.status === 'fulfilled' ? result.value : []);
+    const partial = results.some((result) => result.status === 'rejected');
+    if (partial && !recipes.length) throw new Error('No catalog could be loaded');
+    const list = node('ul', { class: 'public-list' }, recipes.map(({ id, title, summary, type }) =>
       node('li', { class: 'box' }, [
-        node('a', { class: 'public-card', href: recipeLink('recipe', id) }, [
+        node('a', { class: 'public-card', href: recipeLink(type, id) }, [
           node('h3', { text: title }),
           ...(summary ? [node('p', { text: summary })] : [])
         ])
       ])
     ));
     catalog.replaceChildren(recipes.length ? list : node('p', { class: 'muted', text: 'No public recipes yet.' }));
+    if (partial) catalog.append(node('p', { class: 'muted', text: 'Some public recipes are temporarily unavailable.' }));
   } catch {
     catalog.textContent = 'Could not load public recipes. Try refreshing this page.';
   }
@@ -576,13 +709,15 @@ async function loadRecipe() {
     renderRecipe(usableRecipe(parsed), text);
     return;
   }
-  const id = recipeLocation.get('recipe') ?? featuredId;
+  const published = recipeLocation.has('published');
+  const id = published ? recipeLocation.get('published') : recipeLocation.get('recipe') ?? featuredId;
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id) || id.length > 80) throw new Error('Invalid recipe ID');
-  const response = await fetch('./recipes/' + id + '.json');
+  if (published && !publicationEndpoint) throw new Error('Publication is unavailable');
+  const response = await fetch(published ? publicationEndpoint + '/' + id : './recipes/' + id + '.json');
   if (!response.ok) throw new Error('Recipe request failed');
   const recipe = usableRecipe(await response.json());
   if (recipe.id !== id) throw new Error('Recipe ID does not match file');
-  renderRecipe(recipe);
+  renderRecipe(recipe, '', published);
 }
 
 if (!isRecipeLink && !legacyRecipeHash.test(location.hash)) renderHome();
