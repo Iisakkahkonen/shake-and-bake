@@ -47,6 +47,15 @@ test('a meal links its times and sides to the matching cooking cards', () => {
   assert.equal(recipe.shoppingList[0].items[0].amount, '450 g');
 });
 
+test('total time and hands-on time are separate optional values', () => {
+  const recipe = normalizeRecipe({ ...sample(), totalTime: '4 hours', activeTime: 'approximately 1 hour' });
+  assert.equal(recipe.totalTime, '4 hours');
+  assert.equal(recipe.activeTime, 'approximately 1 hour');
+  assert.equal(recipe.prep, '');
+  assert.equal(recipe.cook, '');
+  assert.equal(normalizeRecipe(sample()).totalTime, '');
+});
+
 test('unknown timings and quantities stay unknown', () => {
   const input = sample();
   input.schedule = [];

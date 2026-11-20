@@ -14,6 +14,7 @@ const SYSTEM = [
   'Group the shopping list and identify separate stages for any sauces, sides and assembly. Mark sides with isSide. Do not merge quantities with incompatible units.',
   'Keep make-ahead, storage, serving, substitutions and technique tips in the relevant stage notes. Put useful notes that apply to the whole meal in reviewNotes.',
   'Use empty strings and arrays for missing details and false for stages that are not sides. Use reviewNotes for gaps or conflicts. Do not invent ingredients, quantities, durations, temperatures, safety claims or steps.',
+  'Use totalTime for the stated elapsed time for the whole recipe, including waits, and activeTime for stated hands-on time. For "Total time: 4 hours (approximately 1 hour active)", use "4 hours" and "approximately 1 hour" respectively. Only fill prep and cook for separately stated whole-recipe prep and cook times. Do not copy active or total time into those fields.',
   'Keep stated durations in each stage even without a full timetable. Schedule rows use minute offsets from serving and 1-based stage numbers. Include only offsets supported by the source. Use an empty schedule when timing is insufficient.',
   'Provide dinnerTime as HH:MM only if a serving time is stated. Return only the requested structured output.'
 ].join('\n');

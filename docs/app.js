@@ -52,11 +52,47 @@ function title(text) {
   return node('h2', { text, tabindex: '-1' });
 }
 
-const renderRecipe = (recipe) => {
+function sourceTiming(source) {
+  const timing = {};
+  for (const line of source.split(/\r?\n/, 30)) {
+    const clean = line.replaceAll('**', '').trim().replace(/\\$/, '').trim();
+    const match = /^(total|active) time\s*:\s*(.+)$/i.exec(clean);
+    if (!match) continue;
+    const [, kind, value] = match;
+    if (value.length > 100) continue;
+    if (kind.toLowerCase() === 'active') {
+      timing.activeTime ??= value;
+      continue;
+    }
+    const combined = /^(.*?)\s*\((.+?)\s+active\)$/i.exec(value);
+    timing.totalTime ??= combined ? combined[1].trim() : value;
+    if (combined) timing.activeTime ??= combined[2].trim();
+  }
+  return timing;
+}
+
+function recipeMetadata(recipe, source) {
+  const stated = sourceTiming(source);
+  const total = stated.totalTime || recipe.totalTime;
+  const active = stated.activeTime || recipe.activeTime;
+  const timeKey = (value) => value.trim().toLowerCase().replace(/\s+/g, ' ')
+    .replace(/^(approximately|about|around|roughly)\s+|^[~≈]\s*/, '');
+  const seen = new Set([total, active].filter(Boolean).map(timeKey));
+  const times = [total && 'Total: ' + total, active && 'Active: ' + active];
+  for (const duration of [recipe.prep, recipe.cook].filter(Boolean)) {
+    const key = timeKey(duration);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    times.push(duration);
+  }
+  return [recipe.servings, ...times].filter(Boolean);
+}
+
+const renderRecipe = (recipe, source = '') => {
   const heading = document.querySelector('h1');
   const summary = document.querySelector('.summary');
   const meta = document.querySelector('.meta');
-  for (const text of [recipe.servings, recipe.prep, recipe.cook].filter(Boolean)) {
+  for (const text of recipeMetadata(recipe, source)) {
     const item = document.createElement('li');
     item.textContent = text;
     meta.append(item);
@@ -536,8 +572,8 @@ async function loadPublicRecipes(catalog) {
 async function loadRecipe() {
   if (recipeLocation.has('local')) {
     const id = recipeLocation.get('local');
-    const { parsed } = readPersonalRecipes().find((entry) => entry.parsed?.id === id) ?? {};
-    renderRecipe(usableRecipe(parsed));
+    const { parsed, text } = readPersonalRecipes().find((entry) => entry.parsed?.id === id) ?? {};
+    renderRecipe(usableRecipe(parsed), text);
     return;
   }
   const id = recipeLocation.get('recipe') ?? featuredId;
