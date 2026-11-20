@@ -57,11 +57,36 @@ test('unknown timings and quantities stay unknown', () => {
   assert.equal(recipe.reviewNotes.length, 2);
 });
 
-test('unexpected fields, bad stage numbers and invalid ranges are rejected', () => {
+test('unexpected fields are rejected', () => {
   assert.throws(() => normalizeRecipe({ ...sample(), unexpected: 'command' }));
-  for (const entry of [{ stage: 99, offsets: [-20] }, { stage: 1, offsets: [-20, -40] }]) {
-    assert.throws(() => normalizeRecipe({ ...sample(), schedule: [{ label: 'Roast', ...entry }] }));
-  }
+});
+
+test('a bad timing row does not discard the rest of a multi-stage recipe', async (t) => {
+  const extraction = sample();
+  extraction.schedule.push(
+    { label: 'Unknown stage', stage: 99, offsets: [-30] },
+    { label: 'Reversed range', stage: 1, offsets: [-20, -40] },
+    { label: 'Missing offset', stage: 2, offsets: [] }
+  );
+  const text = ['# Roast carrots and dressing\\', '\\* 450 g carrots', '1\\. Roast for 20 minutes.', '2\\. Make the dressing.'].join('\n');
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    assert.equal(JSON.parse(init.body).contents[0].parts[0].text, text);
+    return geminiResponse(extraction);
+  });
+  const response = await worker.fetch(request(text), env);
+  assert.equal(response.status, 200);
+  const { recipe } = await response.json();
+  assert.equal(recipe.cards.length, 2);
+  assert.deepEqual(recipe.sideIds, [recipe.cards[1].id]);
+  assert.deepEqual(recipe.timeline, [{ label: 'Roast carrots', cardId: recipe.cards[0].id, offsets: [-20] }]);
+  assert.ok(recipe.reviewNotes.some((note) => note.includes('Some timetable entries')));
+});
+
+test('network errors give a distinct message', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => { throw new TypeError('internal upstream failure'); });
+  const response = await worker.fetch(request('Roast carrots'), env);
+  assert.equal(response.status, 502);
+  assert.match((await response.json()).error, /could not reach Gemini/);
 });
 
 test('only authenticated, bounded requests can reach Gemini', async (t) => {

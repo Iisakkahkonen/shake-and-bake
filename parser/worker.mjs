@@ -69,25 +69,33 @@ async function authorized(header, secret) {
 }
 
 async function extract(text, apiKey) {
-  const response = await fetch(GEMINI_URL, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-    signal: AbortSignal.timeout(25_000),
-    redirect: 'error',
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM }] },
-      contents: [{ role: 'user', parts: [{ text }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        responseJsonSchema: extractionSchema,
-        maxOutputTokens: 8192,
-        temperature: 0.1
-      }
-    })
-  });
+  let response;
+  try {
+    response = await fetch(GEMINI_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+      signal: AbortSignal.timeout(25_000),
+      redirect: 'error',
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM }] },
+        contents: [{ role: 'user', parts: [{ text }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          responseJsonSchema: extractionSchema,
+          maxOutputTokens: 8192,
+          temperature: 0.1
+        }
+      })
+    });
+  } catch (error) {
+    if (error.name === 'TimeoutError') throw error;
+    throw new HttpError(502, 'The server could not reach Gemini. Try again.');
+  }
   if (response.status === 429) throw new HttpError(429, 'Gemini is at its quota. Try again later.');
   if (!response.ok) throw new HttpError(502, 'Gemini is unavailable or the server key needs checking.');
-  const result = await response.json();
+  const result = await response.json().catch(() => {
+    throw new HttpError(502, 'Gemini returned an unreadable response. Try again.');
+  });
   const candidate = result.candidates?.[0];
   if (result.promptFeedback?.blockReason ||
     ['SAFETY', 'RECITATION', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII'].includes(candidate?.finishReason)) {
@@ -101,7 +109,12 @@ async function extract(text, apiKey) {
   if (candidate?.finishReason !== 'STOP' || !output || output.length > 64_000) {
     throw new HttpError(502, 'Gemini could not return a complete recipe.');
   }
-  return normalizeRecipe(JSON.parse(output));
+  try {
+    return normalizeRecipe(JSON.parse(output));
+  } catch (error) {
+    if (!(error instanceof SyntaxError || error instanceof TypeError)) throw error;
+    throw new HttpError(502, 'Gemini returned cooking cards in an unexpected format. Try again, or save the recipe as text.');
+  }
 }
 
 export default {

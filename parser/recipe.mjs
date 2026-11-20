@@ -88,14 +88,22 @@ export function normalizeRecipe(extracted) {
       amount: item.amount.trim()
     })).filter((item) => item.name)
   })).filter((group) => group.name && group.items.length);
-  const timeline = extracted.schedule.map(({ label, stage, offsets }) => {
-    if (!label.trim() || !cards[stage - 1] || !offsets.length ||
-      offsets.some((offset) => offset < -10080 || offset > 1440) || offsets[0] > offsets.at(-1)) {
-      throw new TypeError('Invalid schedule entry');
-    }
-    return { label: label.trim(), cardId: cards[stage - 1].id, offsets };
-  }).sort((a, b) => a.offsets[0] - b.offsets[0]);
   const reviewNotes = nonempty(extracted.reviewNotes);
+  const timeline = [];
+  let omittedTiming = false;
+  for (const { label, stage, offsets } of extracted.schedule) {
+    const card = cards[stage - 1];
+    if (!label.trim() || !card || !offsets.length ||
+      offsets.some((offset) => offset < -10080 || offset > 1440) || offsets[0] > offsets.at(-1)) {
+      omittedTiming = true;
+      continue;
+    }
+    timeline.push({ label: label.trim(), cardId: card.id, offsets });
+  }
+  timeline.sort((a, b) => a.offsets[0] - b.offsets[0]);
+  if (omittedTiming) {
+    reviewNotes.push('Some timetable entries could not be matched to a cooking stage or had invalid times. Check the source before using the timetable.');
+  }
   if (!shoppingList.length) reviewNotes.push('The source did not provide a usable shopping list.');
   if (!timeline.length) reviewNotes.push('The source did not give enough timing information for a timetable.');
   if (shoppingList.some((group) => group.items.some((item) => !item.amount))) {
