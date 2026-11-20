@@ -2,6 +2,7 @@
   "name": "shake-and-bake-parser",
   "main": "worker.mjs",
   "compatibility_date": "2026-11-20",
+  // APP_ORIGIN is the GitHub Pages origin, without a path or trailing slash.
   "vars": {
     "APP_ORIGIN": "https://iisakkahkonen.github.io"
   },
