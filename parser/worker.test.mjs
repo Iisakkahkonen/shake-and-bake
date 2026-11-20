@@ -57,6 +57,27 @@ test('unknown timings and quantities stay unknown', () => {
   assert.equal(recipe.reviewNotes.length, 2);
 });
 
+test('a recipe without a timetable preserves durations and make-ahead notes', () => {
+  const recipe = normalizeRecipe({
+    kind: 'recipe',
+    shopping: [{ items: [{ name: 'focaccia' }] }],
+    stages: [
+      { title: 'Bake the focaccia', timing: '22–28 minutes', steps: ['Bake until golden.'],
+        notes: ['Can be baked one day ahead.'] },
+      { steps: ['Stir to combine.'], isSide: true }
+    ],
+    reviewNotes: ['Serve with warm dip.']
+  });
+  assert.deepEqual(recipe.timeline, []);
+  assert.equal(recipe.title, 'Untitled recipe');
+  assert.equal(recipe.cards[1].title, 'Stage 2');
+  assert.equal(recipe.cards[0].timing, '22–28 minutes');
+  assert.deepEqual(recipe.cards[0].notes, ['Can be baked one day ahead.']);
+  assert.deepEqual(recipe.sideIds, [recipe.cards[1].id]);
+  assert.equal(recipe.shoppingList[0].items[0].amount, '');
+  assert.ok(recipe.reviewNotes.includes('Serve with warm dip.'));
+});
+
 test('unexpected fields are rejected', () => {
   assert.throws(() => normalizeRecipe({ ...sample(), unexpected: 'command' }));
 });
@@ -66,7 +87,7 @@ test('a bad timing row does not discard the rest of a multi-stage recipe', async
   extraction.schedule.push(
     { label: 'Unknown stage', stage: 99, offsets: [-30] },
     { label: 'Reversed range', stage: 1, offsets: [-20, -40] },
-    { label: 'Missing offset', stage: 2, offsets: [] }
+    { label: 'Missing offset', stage: 2 }
   );
   const text = ['# Roast carrots and dressing\\', '\\* 450 g carrots', '1\\. Roast for 20 minutes.', '2\\. Make the dressing.'].join('\n');
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
@@ -128,6 +149,7 @@ test('provider refusals and unusable or malformed outputs do not make recipes', 
     [geminiResponse(sample(), 'SAFETY'), 422],
     [geminiResponse({ ...sample(), kind: 'unusable' }), 422],
     [geminiResponse({ title: 'Model ignored schema' }), 502],
+    [geminiResponse({ kind: 'recipe', title: 'No steps or ingredients' }), 422],
     [new Response(null, { status: 429 }), 429]
   ];
   for (const [result, status] of results) {

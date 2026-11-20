@@ -11,8 +11,9 @@ const SYSTEM = [
   'Use kind "unusable" and empty fields if there is no usable cooking method or if the text requests unsafe or non-food procedures.',
   'For a recipe, retain the source language, original quantities, temperatures, safety cautions, substitutions and the order of steps.',
   'Group the shopping list and identify separate stages for any sauces, sides and assembly. Mark sides with isSide. Do not merge quantities with incompatible units.',
-  'Use empty strings for missing optional details. Use reviewNotes for gaps or conflicts. Do not invent ingredients, quantities, durations, temperatures, safety claims or steps.',
-  'The schedule uses minute offsets from serving time and 1-based stage numbers. Only include entries supported by actual timing in the source. Use an empty schedule when timing is insufficient.',
+  'Keep make-ahead, storage, serving, substitutions and technique tips in the relevant stage notes. Put useful notes that apply to the whole meal in reviewNotes.',
+  'Omit missing optional fields. Use reviewNotes for gaps or conflicts. Do not invent ingredients, quantities, durations, temperatures, safety claims or steps.',
+  'Keep stated durations in each stage even without a full timetable. Schedule rows use minute offsets from serving and 1-based stage numbers. Include only offsets supported by the source. Omit the schedule when timing is insufficient.',
   'Provide dinnerTime as HH:MM only if a serving time is stated. Return only the requested structured output.'
 ].join('\n');
 
