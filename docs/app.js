@@ -2,6 +2,7 @@ const libraryKey = 'shake-and-bake:personal-recipes:v1';
 const featuredId = 'fried-chicken-factory';
 const recipeLocation = new URLSearchParams(location.search);
 const isRecipeLink = recipeLocation.has('local') || recipeLocation.has('recipe');
+const legacyRecipeHash = /^#(?:shop|timeline|cook|sides)(?:\/|$)/;
 const parserEndpoint = document.querySelector('meta[name="recipe-parser-endpoint"]')?.content.trim();
 
 function readPersonalRecipes() {
@@ -33,6 +34,24 @@ function downloadRecipe(recipe) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function node(tag, options = {}, children = []) {
+  const element = document.createElement(tag);
+  for (const [name, value] of Object.entries(options)) {
+    if (name === 'text') element.textContent = value;
+    else element.setAttribute(name, value);
+  }
+  element.append(...children);
+  return element;
+}
+function button(text, onClick, options = {}) {
+  const element = node('button', { type: 'button', text, ...options });
+  element.addEventListener('click', onClick);
+  return element;
+}
+function title(text) {
+  return node('h2', { text, tabindex: '-1' });
+}
+
 const renderRecipe = (recipe) => {
   const heading = document.querySelector('h1');
   const summary = document.querySelector('.summary');
@@ -60,30 +79,13 @@ const renderRecipe = (recipe) => {
     try { localStorage.setItem(key, JSON.stringify({ ...state, checked: [...checked] })); } catch {}
   };
 
-  function node(tag, options = {}, children = []) {
-    const element = document.createElement(tag);
-    for (const [name, value] of Object.entries(options)) {
-      if (name === 'text') element.textContent = value;
-      else element.setAttribute(name, value);
-    }
-    element.append(...children);
-    return element;
-  }
-  function button(text, onClick, options = {}) {
-    const element = node('button', { type: 'button', text, ...options });
-    element.addEventListener('click', onClick);
-    return element;
-  }
-  function title(text) {
-    return node('h2', { text, tabindex: '-1' });
-  }
   function formatTime(minutes) {
     const minuteOfDay = ((minutes % 1440) + 1440) % 1440;
     return [Math.floor(minuteOfDay / 60), minuteOfDay % 60].map((value) => String(value).padStart(2, '0')).join(':');
   }
   function route(tab, id) {
     const next = '#' + [tab.toLowerCase(), id].filter(Boolean).join('/');
-    if (tab === 'Home' && isRecipeLink) location.assign(location.pathname);
+    if (tab === 'Home') location.assign(location.pathname);
     else if (location.hash !== next) location.hash = next;
   }
   function renderShop() {
@@ -227,202 +229,21 @@ const renderRecipe = (recipe) => {
   }
 
 
-  function createHome() {
-    const form = node('form', { class: 'card-section recipe-form' });
-    const draft = node('textarea', {
-      id: 'recipe-draft', rows: '7', placeholder: 'Paste ingredients and cooking instructions…',
-      'aria-describedby': 'recipe-storage-note'
-    });
-    const fileInput = node('input', {
-      id: 'recipe-file', type: 'file', accept: '.txt,.md,text/plain,text/markdown'
-    });
-    const save = node('button', { class: 'action primary', type: 'submit', text: 'Save recipe' });
-    const status = node('p', { class: 'recipe-status', role: 'status' });
-    const entries = node('div', { class: 'personal-recipes' });
-
-    const importCode = node('input', {
-      id: 'recipe-import-code', type: 'password', autocomplete: 'off', autocapitalize: 'none',
-      spellcheck: 'false', maxlength: '128'
-    });
-    const parse = button('Make cooking cards', async () => {
-      const text = draft.value;
-      if (!text.trim()) {
-        status.textContent = 'Paste a recipe or choose a file first.';
-        draft.focus();
-        return;
-      }
-      if (text.length > 16000) {
-        status.textContent = 'Use at most 16,000 characters for conversion.';
-        return;
-      }
-      const code = importCode.value.trim();
-      if (!/^[A-Za-z0-9_-]{32,128}$/.test(code)) {
-        status.textContent = 'Enter your import code first.';
-        importCode.focus();
-        return;
-      }
-      setBusy(true);
-      importCode.disabled = true;
-      status.textContent = 'Making cooking cards…';
-      try {
-        const response = await fetch(parserEndpoint, {
-          method: 'POST',
-          headers: { Authorization: 'Bearer ' + code, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-          credentials: 'omit',
-          redirect: 'error',
-          signal: AbortSignal.timeout(32000)
-        });
-        const result = await response.json();
-        if (!response.ok) {
-          status.textContent = result.error || 'Recipe conversion failed.';
-          return;
-        }
-        const parsed = usableRecipe(result.recipe);
-        try {
-          const recipes = [{ title: parsed.title, text, parsed }, ...readPersonalRecipes()];
-          localStorage.setItem(libraryKey, JSON.stringify(recipes));
-        } catch {
-          status.textContent = 'Could not save the cooking cards. Your text is still in the box.';
-          return;
-        }
-        importCode.value = '';
-        location.assign(recipeLink('local', parsed.id));
-      } catch {
-        status.textContent = 'Could not make cooking cards. Your text is still in the box.';
-      } finally {
-        importCode.disabled = false;
-        setBusy(false);
-      }
-    }, { class: 'action primary' });
-
-    function setBusy(busy) {
-      draft.readOnly = busy;
-      fileInput.disabled = busy;
-      save.disabled = busy;
-      parse.disabled = busy;
-    }
-
-
-    function showRecipes(recipes, openFirst = false) {
-      entries.replaceChildren(...recipes.map(({ title, text, parsed }, index) => node('details', {
-        class: 'box', ...(openFirst && index === 0 ? { open: '' } : {})
-      }, [
-        node('summary', { text: title }),
-        ...(parsed ? [node('a', { class: 'saved-recipe-link', href: recipeLink('local', parsed.id), text: 'Open cooking cards' })] : []),
-        node('div', { class: 'recipe-text', text }),
-        ...(!parsed && parserEndpoint ? [button('Use this text', () => {
-          if (save.disabled) return;
-          draft.value = text;
-          draft.focus();
-        }, { class: 'action saved-recipe-action' })] : [])
-      ])));
-      if (!recipes.length) entries.append(node('p', { class: 'muted', text: 'No saved recipes yet.' }));
-    }
-
-    fileInput.addEventListener('change', async () => {
-      const file = fileInput.files[0];
-      fileInput.value = '';
-      if (!file) return;
-      if (!/\.(txt|md)$/i.test(file.name)) {
-        status.textContent = 'Choose a .txt or .md file.';
-        return;
-      }
-      setBusy(true);
-      status.textContent = 'Reading file…';
-      try {
-        const text = await file.text();
-        if (!text.trim()) {
-          status.textContent = 'This file is empty.';
-          return;
-        }
-        draft.value = text;
-        status.textContent = 'File loaded. Tap Save recipe to keep it.';
-      } catch {
-        status.textContent = 'Could not read the file. You can paste its text into the box.';
-      } finally {
-        setBusy(false);
-      }
-    });
-
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      if (save.disabled) return;
-      const text = draft.value;
-      if (!text.trim()) {
-        status.textContent = 'Paste a recipe or choose a file first.';
-        draft.focus();
-        return;
-      }
-      const heading = text.trim().split(/\r?\n/, 1)[0].replace(/^#{1,6}\s+/, '').trim();
-      const title = heading.length > 80 ? heading.slice(0, 77) + '…' : heading;
-      let recipes;
-      try {
-        recipes = [{ title: title || 'Untitled recipe', text }, ...readPersonalRecipes()];
-        localStorage.setItem(libraryKey, JSON.stringify(recipes));
-      } catch {
-        status.textContent = 'Could not save this recipe. Your text is still in the box.';
-        return;
-      }
-      draft.value = '';
-      status.textContent = 'Recipe saved.';
-      showRecipes(recipes, true);
-    });
-
-    try {
-      showRecipes(readPersonalRecipes());
-    } catch {
-      entries.textContent = 'Could not open saved recipes in this browser.';
-    }
-    form.append(
-      node('label', { for: 'recipe-draft', text: 'Paste recipe text' }), draft,
-      node('label', { for: 'recipe-file', text: 'Or load a .txt or .md file' }), fileInput,
-      node('p', { id: 'recipe-storage-note', class: 'muted', text: 'Saved as text in this browser. Recipes stay on this device and can be lost if you clear site data.' }),
-      save
-    );
-    if (parserEndpoint) {
-      form.append(node('div', { class: 'parser-controls' }, [
-        node('label', { for: 'recipe-import-code', text: 'Import code' }),
-        importCode,
-        node('p', { class: 'muted', text: 'Making cooking cards sends the recipe text to Google Gemini.' }),
-        parse
-      ]));
-    }
-    form.append(status);
-    const personal = node('section', { class: 'library-section', 'aria-labelledby': 'personal-recipes-label' }, [
-      node('h2', { id: 'personal-recipes-label', text: 'Your recipes' }), entries
-    ]);
-    const featured = node('section', { class: 'library-section', 'aria-labelledby': 'featured-recipe-label' }, [
-      node('h2', { id: 'featured-recipe-label', text: 'Featured recipe' }),
-      node('div', { class: 'box' }, [button(recipe.title, () => route('shop'), { class: 'row featured-recipe' })])
-    ]);
-    return [title('Add a recipe'), form, personal, featured];
-  }
-
-  let home;
-  function renderHome() {
-    home ??= createHome();
-    main.append(...home);
-  }
-
   const buttons = tabs.map((tab) => button(tab, () => route(tab)));
   nav.querySelector('.tabs').replaceChildren(...buttons);
   function render(moveFocus = false) {
     const [page, id] = location.hash.slice(1).split('/');
     const index = tabs.findIndex((tab) => tab.toLowerCase() === page);
-    const active = index < 0 || (isRecipeLink && index === 0) ? Number(isRecipeLink) : index;
+    const active = Math.max(1, index);
     buttons.forEach((element, i) => {
       if (i === active) element.setAttribute('aria-current', 'page');
       else element.removeAttribute('aria-current');
     });
-    const isHome = active === 0;
-    heading.textContent = isHome ? 'Shake and Bake' : recipe.title;
-    document.title = heading.textContent;
-    summary.hidden = isHome;
+    heading.textContent = recipe.title;
+    document.title = recipe.title;
     summary.textContent = recipe.summary;
-    meta.hidden = isHome;
     main.replaceChildren();
-    [renderHome, renderShop, renderTimeline, renderCook, renderSides][active](id);
+    [renderShop, renderTimeline, renderCook, renderSides][active - 1](id);
     if (moveFocus) {
       window.scrollTo(0, 0);
       if (window.matchMedia('(pointer: fine)').matches) main.querySelector('h2')?.focus({ preventScroll: true });
@@ -432,6 +253,285 @@ const renderRecipe = (recipe) => {
   render();
 };
 
+
+function renderHome() {
+  const main = document.querySelector('main');
+  const hero = node('section', { class: 'home-hero', 'aria-labelledby': 'home-title' }, [
+    node('div', { class: 'hero-copy' }, [
+      node('h1', { id: 'home-title', text: 'Shake and Bake' }),
+      node('p', { text: 'Turn recipes into shopping lists, dinner timetables, and step-by-step cooking cards.' }),
+      node('a', { class: 'action primary home-action', href: '#add-recipe', text: 'Add a recipe' })
+    ]),
+    node('img', { class: 'hero-photo', src: './images/kitchen-counter.jpg', alt: '', fetchpriority: 'high' })
+  ]);
+  const navigation = node('div', { class: 'home-links' }, [
+    node('a', { href: '#my-recipes', text: 'My recipes' }),
+    node('a', { href: '#public-recipes', text: 'Public recipes' })
+  ]);
+  const form = node('form', { class: 'card-section recipe-form' });
+  const draft = node('textarea', {
+    id: 'recipe-draft', rows: '7', placeholder: 'Paste ingredients and cooking instructions…',
+    'aria-describedby': 'recipe-storage-note'
+  });
+  const fileInput = node('input', {
+    id: 'recipe-file', type: 'file', accept: '.txt,.md,text/plain,text/markdown'
+  });
+  const save = node('button', { class: 'action primary', type: 'submit', text: 'Save as text' });
+  const status = node('p', { class: 'recipe-status', role: 'status' });
+  const entries = node('div', { class: 'personal-recipes' });
+  const libraryStatus = node('p', { class: 'library-status', role: 'status' });
+
+  const importCode = node('input', {
+    id: 'recipe-import-code', type: 'password', autocomplete: 'off', autocapitalize: 'none',
+    spellcheck: 'false', maxlength: '128'
+  });
+  const parse = button('Make cooking cards', async () => {
+    const text = draft.value;
+    if (!text.trim()) {
+      status.textContent = 'Paste a recipe or choose a file first.';
+      draft.focus();
+      return;
+    }
+    if (text.length > 16000) {
+      status.textContent = 'Use at most 16,000 characters for conversion.';
+      return;
+    }
+    const code = importCode.value.trim();
+    if (!/^[A-Za-z0-9_-]{32,128}$/.test(code)) {
+      status.textContent = 'Enter your import code first.';
+      importCode.focus();
+      return;
+    }
+    setBusy(true);
+    importCode.disabled = true;
+    status.textContent = 'Making cooking cards…';
+    try {
+      const response = await fetch(parserEndpoint, {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + code, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+        credentials: 'omit',
+        redirect: 'error',
+        signal: AbortSignal.timeout(32000)
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        status.textContent = result.error || 'Recipe conversion failed.';
+        return;
+      }
+      const parsed = usableRecipe(result.recipe);
+      try {
+        const recipes = [{ title: parsed.title, text, parsed }, ...readPersonalRecipes()];
+        localStorage.setItem(libraryKey, JSON.stringify(recipes));
+      } catch {
+        status.textContent = 'Could not save the cooking cards. Your text is still in the box.';
+        return;
+      }
+      importCode.value = '';
+      location.assign(recipeLink('local', parsed.id));
+    } catch {
+      status.textContent = 'Could not make cooking cards. Your text is still in the box.';
+    } finally {
+      importCode.disabled = false;
+      setBusy(false);
+    }
+  }, { class: 'action primary' });
+
+  function setBusy(busy) {
+    draft.readOnly = busy;
+    fileInput.disabled = busy;
+    save.disabled = busy;
+    parse.disabled = busy;
+  }
+
+
+  function showRecipes(recipes, openFirst = false) {
+    entries.replaceChildren(...recipes.map((entry, index) => {
+      const { title, text, parsed } = entry;
+      const actions = node('div', { class: 'saved-recipe-actions' });
+      if (parsed) {
+        actions.append(node('a', {
+          class: 'action home-action', href: recipeLink('local', parsed.id), text: 'Open cooking cards'
+        }));
+      } else if (parserEndpoint) {
+        actions.append(button('Use this text', () => {
+          if (save.disabled || (draft.value.trim() && !window.confirm('Replace the text in the recipe box?'))) return;
+          draft.value = text;
+          draft.focus();
+        }, { class: 'action' }));
+      }
+      const remove = button('Remove', () => {
+        actions.replaceChildren(
+          node('p', { class: 'remove-note', text: 'Remove this recipe from this browser?' }),
+          confirm, cancel
+        );
+        cancel.focus();
+      }, { class: 'action remove-action', 'aria-label': 'Remove ' + title });
+      const originalActions = [...actions.childNodes, remove];
+      const cancel = button('Cancel', () => {
+        actions.replaceChildren(...originalActions);
+        remove.focus();
+      }, { class: 'action' });
+      const confirm = button('Remove recipe', () => {
+        try {
+          const current = readPersonalRecipes();
+          if (JSON.stringify(current[index]) !== JSON.stringify(entry) || current.length !== recipes.length) {
+            showRecipes(current);
+            libraryStatus.textContent = 'Your saved recipes changed. Choose the recipe again.';
+          } else {
+            current.splice(index, 1);
+            localStorage.setItem(libraryKey, JSON.stringify(current));
+            showRecipes(current);
+            libraryStatus.textContent = 'Recipe removed.';
+          }
+          document.querySelector('#my-recipes h2').focus();
+        } catch {
+          libraryStatus.textContent = 'Could not remove this recipe.';
+        }
+      }, { class: 'action primary' });
+      actions.append(remove);
+      return node('details', { class: 'box', ...(openFirst && index === 0 ? { open: '' } : {}) }, [
+        node('summary', { text: title }),
+        actions,
+        node('div', { class: 'recipe-text', text })
+      ]);
+    }));
+    if (!recipes.length) entries.append(node('p', { class: 'muted', text: 'No saved recipes yet.' }));
+  }
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    if (!/\.(txt|md)$/i.test(file.name)) {
+      status.textContent = 'Choose a .txt or .md file.';
+      return;
+    }
+    setBusy(true);
+    status.textContent = 'Reading file…';
+    try {
+      const text = await file.text();
+      if (!text.trim()) {
+        status.textContent = 'This file is empty.';
+        return;
+      }
+      draft.value = text;
+      status.textContent = 'File loaded. Choose Save as text or Make cooking cards.';
+    } catch {
+      status.textContent = 'Could not read the file. You can paste its text into the box.';
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (save.disabled) return;
+    const text = draft.value;
+    if (!text.trim()) {
+      status.textContent = 'Paste a recipe or choose a file first.';
+      draft.focus();
+      return;
+    }
+    const heading = text.trim().split(/\r?\n/, 1)[0].replace(/^#{1,6}\s+/, '').trim();
+    const title = heading.length > 80 ? heading.slice(0, 77) + '…' : heading;
+    let recipes;
+    try {
+      recipes = [{ title: title || 'Untitled recipe', text }, ...readPersonalRecipes()];
+      localStorage.setItem(libraryKey, JSON.stringify(recipes));
+    } catch {
+      status.textContent = 'Could not save this recipe. Your text is still in the box.';
+      return;
+    }
+    draft.value = '';
+    status.textContent = 'Saved to My recipes.';
+    libraryStatus.textContent = '';
+    showRecipes(recipes, true);
+  });
+
+  function refreshLibrary() {
+    try {
+      showRecipes(readPersonalRecipes());
+      libraryStatus.textContent = '';
+    } catch {
+      entries.textContent = 'Could not open saved recipes in this browser.';
+    }
+  }
+  refreshLibrary();
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) refreshLibrary();
+  });
+  window.addEventListener('storage', (event) => {
+    if (event.key === libraryKey || event.key === null) refreshLibrary();
+  });
+  form.append(
+    node('label', { for: 'recipe-draft', text: 'Paste recipe text' }), draft,
+    node('label', { for: 'recipe-file', text: 'Or load a .txt or .md file' }), fileInput,
+    node('p', { id: 'recipe-storage-note', class: 'muted', text: 'Personal recipes are saved in this browser.' }),
+    save
+  );
+  if (parserEndpoint) {
+    form.append(node('div', { class: 'parser-controls' }, [
+      node('label', { for: 'recipe-import-code', text: 'Import code' }),
+      importCode,
+      node('p', { class: 'muted', text: 'Making cooking cards sends the recipe text to Google Gemini.' }),
+      parse
+    ]));
+  }
+  form.append(status);
+  const personal = node('section', { id: 'my-recipes', class: 'library-section', 'aria-labelledby': 'my-recipes-title' }, [
+    node('h2', { id: 'my-recipes-title', tabindex: '-1', text: 'My recipes' }),
+    libraryStatus,
+    entries
+  ]);
+  const catalog = node('div', { class: 'public-catalog', 'aria-live': 'polite', text: 'Loading public recipes…' });
+  const publicRecipes = node('section', { id: 'public-recipes', class: 'library-section', 'aria-labelledby': 'public-recipes-title' }, [
+    node('h2', { id: 'public-recipes-title', text: 'Public recipes' }),
+    catalog,
+    node('a', {
+      class: 'catalog-management', text: 'Manage public recipes on GitHub',
+      href: 'https://github.com/Iisakkahkonen/shake-and-bake#public-recipes'
+    })
+  ]);
+  const addRecipe = node('section', { id: 'add-recipe', class: 'home-import', 'aria-labelledby': 'add-recipe-title' }, [
+    node('h2', { id: 'add-recipe-title', text: 'Add a recipe' }),
+    node('p', { class: 'muted', text: 'Paste a recipe or choose a file. Save it as text, or use your import code to make cooking cards.' }),
+    form
+  ]);
+  document.body.classList.add('home-page');
+  document.querySelector('header').hidden = true;
+  document.querySelector('nav').hidden = true;
+  main.replaceChildren(hero, navigation, node('div', { class: 'home-content' }, [
+    addRecipe, node('div', { class: 'home-library' }, [personal, publicRecipes])
+  ]));
+  if (location.hash) document.getElementById(location.hash.slice(1))?.scrollIntoView();
+  loadPublicRecipes(catalog);
+  window.addEventListener('hashchange', () => {
+    if (legacyRecipeHash.test(location.hash)) {
+      const url = recipeLink('recipe', featuredId).replace(/#shop$/, location.hash);
+      location.replace(url);
+    }
+  });
+}
+
+async function loadPublicRecipes(catalog) {
+  try {
+    const response = await fetch('./recipes/index.json');
+    if (!response.ok) throw new Error('Catalog request failed');
+    const recipes = await response.json();
+    const list = node('ul', { class: 'public-list' }, recipes.map(({ id, title, summary }) =>
+      node('li', { class: 'box' }, [
+        node('a', { class: 'public-card', href: recipeLink('recipe', id) }, [
+          node('h3', { text: title }),
+          ...(summary ? [node('p', { text: summary })] : [])
+        ])
+      ])
+    ));
+    catalog.replaceChildren(recipes.length ? list : node('p', { class: 'muted', text: 'No public recipes yet.' }));
+  } catch {
+    catalog.textContent = 'Could not load public recipes. Try refreshing this page.';
+  }
+}
 
 async function loadRecipe() {
   if (recipeLocation.has('local')) {
@@ -449,7 +549,8 @@ async function loadRecipe() {
   renderRecipe(recipe);
 }
 
-loadRecipe().catch(() => {
+if (!isRecipeLink && !legacyRecipeHash.test(location.hash)) renderHome();
+else loadRecipe().catch(() => {
   const status = document.querySelector('#recipe-status');
   if (!status) return;
   status.textContent = 'Could not open this recipe. ';

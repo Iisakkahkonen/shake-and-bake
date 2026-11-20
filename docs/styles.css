@@ -68,9 +68,77 @@ progress{accent-color:var(--green);height:.7rem;width:100%}
 .library-section h2{margin-bottom:.65rem}
 .recipe-text{white-space:pre-wrap;overflow-wrap:anywhere;padding:.7rem .9rem;border-top:1px solid var(--rule)}
 .personal-recipes summary{overflow-wrap:anywhere}
-.featured-recipe{font-weight:700}
 
 .parser-controls{display:grid;gap:.45rem;border-top:1px solid var(--rule);margin-top:.3rem;padding-top:.8rem}
 .parser-controls input{width:100%;max-width:27rem;padding:.5rem .65rem;border:1px solid #b99e8b;border-radius:.35rem;background:var(--cream);color:var(--ink)}
-.saved-recipe-link{display:inline-block;padding:.55rem .9rem;font-weight:700;color:var(--rust)}
-.saved-recipe-action{margin:.6rem .9rem}
+
+.home-page main.wrap {
+  width: min(100% - 2rem, 67rem);
+  padding-block: 1rem 3rem;
+}
+.home-hero {
+  display: grid;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: #361e17;
+  color: var(--cream);
+}
+.hero-copy { padding: clamp(1.25rem, 5vw, 3.25rem); }
+.hero-copy h1 { max-width: none; font-size: clamp(2.45rem, 7vw, 5.3rem); }
+.hero-copy p { color: #ffe6d1; margin-block: .65rem 1rem; max-width: 34ch; }
+.hero-photo {
+  display: block;
+  width: 100%;
+  height: clamp(8.25rem, 26vw, 12rem);
+  object-fit: cover;
+  object-position: center 32%;
+}
+.home-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: .8rem;
+  text-decoration: none;
+}
+.hero-copy .action { background: #fbe6cf; border-color: #fbe6cf; color: #361e17; }
+.hero-copy .action:focus-visible { outline-color: #fff9ef; }
+.home-links {
+  display: flex;
+  gap: 1.2rem;
+  border-bottom: 1px solid var(--rule);
+  padding-block: .25rem;
+  margin-bottom: 1.3rem;
+}
+.home-links a, .catalog-management {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--rust);
+  font-weight: 700;
+  text-underline-offset: .2em;
+}
+.home-content { display: grid; gap: 1.65rem; }
+.home-import, .home-library { min-width: 0; }
+.home-import > p { margin-top: .45rem; }
+.home-library .library-section:first-child { margin-top: 0; }
+.home-content section { scroll-margin-top: .8rem; }
+.home-page .recipe-form { margin-top: .75rem; }
+.home-page .recipe-form .action { width: fit-content; text-align: left; }
+.library-status { color: var(--muted); margin-bottom: .55rem; }
+.library-status:empty { display: none; }
+.public-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .65rem; }
+.public-card { display: block; padding: .8rem .95rem; color: var(--ink); text-decoration: none; }
+.public-card h3 { color: var(--rust); text-decoration: underline; text-underline-offset: .18em; }
+.public-card p { margin-top: .3rem; color: var(--muted); }
+.public-card:hover { background: var(--soft); }
+.public-card:focus-visible { outline-offset: -4px; }
+.catalog-management { margin-top: .35rem; font-size: .9rem; }
+.saved-recipe-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem; padding: 0 .9rem .65rem; }
+.remove-action { color: var(--rust); }
+.remove-note { flex-basis: 100%; }
+@media (min-width: 48rem) {
+  .home-page main.wrap { padding-top: 1.75rem; }
+  .home-hero { grid-template-columns: 1.05fr 1fr; }
+  .hero-photo { height: 100%; min-height: 17.5rem; }
+  .home-content { grid-template-columns: 1.15fr .85fr; gap: clamp(1.6rem, 4vw, 3.4rem); }
+}

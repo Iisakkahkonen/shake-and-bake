@@ -4,7 +4,14 @@ A phone-friendly cooking app with a shopping checklist, dinner timeline, and ste
 
 ## Recipe storage
 
-Personal drafts and AI imports stay in this browser's site storage. The original text stays attached to each personal import. To deliberately publish a reviewed recipe, open its cooking cards and choose **Download recipe JSON**. Commit it under **docs/recipes/** with the provided filename. Then share the site URL with **?recipe=RECIPE-ID** appended, using the filename without **.json**. Anyone with that URL can open the interactive recipe. The export contains the normalized recipe, without the personal draft text.
+Personal drafts and AI imports stay in this browser's site storage. The original text stays attached to each personal import. Open an entry in **My recipes** and choose **Remove** to delete its copy from this browser.
+
+## Public recipes
+
+Repository collaborators manage the public shelf through [the recipes folder](https://github.com/Iisakkahkonen/shake-and-bake/tree/main/docs/recipes).
+
+- To publish a reviewed recipe, open its cooking cards and choose **Download recipe JSON**. Commit the exported file under **docs/recipes/** using its filename. Add its **id**, **title**, and **summary** to **docs/recipes/index.json** to list it on Home. The export contains the normalized recipe. You can share the direct link with **?recipe=RECIPE-ID**.
+- To remove a recipe from the public site, remove its entry from **docs/recipes/index.json** and delete its matching recipe JSON in the same commit. Once GitHub Pages redeploys, its direct link stops working. Earlier commits in the public repository retain the file.
 
 The built-in **docs/recipes/fried-chicken-factory.json** is the first example of the versioned recipe format.
 
