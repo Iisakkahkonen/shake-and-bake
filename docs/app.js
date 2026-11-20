@@ -1,7 +1,6 @@
 const renderRecipe = (recipe) => {
-  document.title = recipe.title;
-  document.querySelector('h1').textContent = recipe.title;
-  document.querySelector('.summary').textContent = recipe.summary;
+  const heading = document.querySelector('h1');
+  const summary = document.querySelector('.summary');
   const meta = document.querySelector('.meta');
   for (const text of [recipe.servings, recipe.prep, recipe.cook].filter(Boolean)) {
     const item = document.createElement('li');
@@ -11,7 +10,7 @@ const renderRecipe = (recipe) => {
   const cards = new Map(recipe.cards.map((card) => [card.id, card]));
   const main = document.querySelector('main');
   const nav = document.querySelector('nav');
-  const tabs = ['Shop', 'Timeline', 'Cook', 'Sides'];
+  const tabs = ['Home', 'Shop', 'Timeline', 'Cook', 'Sides'];
   const key = `recipe:${recipe.id}:v${recipe.schemaVersion}`;
   const state = { checked: [], dinner: recipe.defaultDinner, stage: recipe.cards[0].id };
   try {
@@ -162,6 +161,113 @@ const renderRecipe = (recipe) => {
     main.append(node('div', { class: 'section-head' }, [title('Sides & assembly')]), node('ul', { class: 'box side-list' }, entries));
   }
 
+
+  const libraryKey = 'shake-and-bake:personal-recipes:v1';
+
+  function readPersonalRecipes() {
+    return JSON.parse(localStorage.getItem(libraryKey) ?? '[]');
+  }
+
+  function createHome() {
+    const form = node('form', { class: 'card-section recipe-form' });
+    const draft = node('textarea', {
+      id: 'recipe-draft', rows: '7', placeholder: 'Paste ingredients and cooking instructions…',
+      'aria-describedby': 'recipe-storage-note'
+    });
+    const fileInput = node('input', {
+      id: 'recipe-file', type: 'file', accept: '.txt,.md,text/plain,text/markdown'
+    });
+    const save = node('button', { class: 'action primary', type: 'submit', text: 'Save recipe' });
+    const status = node('p', { class: 'recipe-status', role: 'status' });
+    const entries = node('div', { class: 'personal-recipes' });
+
+    function showRecipes(recipes, openFirst = false) {
+      entries.replaceChildren(...recipes.map(({ title, text }, index) => node('details', {
+        class: 'box', ...(openFirst && index === 0 ? { open: '' } : {})
+      }, [node('summary', { text: title }), node('div', { class: 'recipe-text', text })])));
+      if (!recipes.length) entries.append(node('p', { class: 'muted', text: 'No saved recipes yet.' }));
+    }
+
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files[0];
+      fileInput.value = '';
+      if (!file) return;
+      if (!/\.(txt|md)$/i.test(file.name)) {
+        status.textContent = 'Choose a .txt or .md file.';
+        return;
+      }
+      draft.readOnly = true;
+      fileInput.disabled = true;
+      save.disabled = true;
+      status.textContent = 'Reading file…';
+      try {
+        const text = await file.text();
+        if (!text.trim()) {
+          status.textContent = 'This file is empty.';
+          return;
+        }
+        draft.value = text;
+        status.textContent = 'File loaded. Tap Save recipe to keep it.';
+      } catch {
+        status.textContent = 'Could not read the file. You can paste its text into the box.';
+      } finally {
+        draft.readOnly = false;
+        fileInput.disabled = false;
+        save.disabled = false;
+      }
+    });
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      if (save.disabled) return;
+      const text = draft.value;
+      if (!text.trim()) {
+        status.textContent = 'Paste a recipe or choose a file first.';
+        draft.focus();
+        return;
+      }
+      const heading = text.trim().split(/\r?\n/, 1)[0].replace(/^#{1,6}\s+/, '').trim();
+      const title = heading.length > 80 ? heading.slice(0, 77) + '…' : heading;
+      let recipes;
+      try {
+        recipes = [{ title: title || 'Untitled recipe', text }, ...readPersonalRecipes()];
+        localStorage.setItem(libraryKey, JSON.stringify(recipes));
+      } catch {
+        status.textContent = 'Could not save this recipe. Your text is still in the box.';
+        return;
+      }
+      draft.value = '';
+      status.textContent = 'Recipe saved.';
+      showRecipes(recipes, true);
+    });
+
+    try {
+      showRecipes(readPersonalRecipes());
+    } catch {
+      entries.textContent = 'Could not open saved recipes in this browser.';
+    }
+    form.append(
+      node('label', { for: 'recipe-draft', text: 'Paste recipe text' }), draft,
+      node('label', { for: 'recipe-file', text: 'Or load a .txt or .md file' }), fileInput,
+      node('p', { id: 'recipe-storage-note', class: 'muted', text: 'Saved as text in this browser. Recipes stay on this device and can be lost if you clear site data.' }),
+      save, status
+    );
+    const personal = node('section', { class: 'library-section', 'aria-labelledby': 'personal-recipes-label' }, [
+      node('h2', { id: 'personal-recipes-label', text: 'Your recipes' }), entries
+    ]);
+    const featured = node('section', { class: 'library-section', 'aria-labelledby': 'featured-recipe-label' }, [
+      node('h2', { id: 'featured-recipe-label', text: 'Featured recipe' }),
+      node('div', { class: 'box' }, [button(recipe.title, () => route('shop'), { class: 'row featured-recipe' })])
+    ]);
+    return [title('Add a recipe'), form, personal, featured];
+  }
+
+  let home;
+  function renderHome() {
+    home ??= createHome();
+    main.append(...home);
+  }
+
   const buttons = tabs.map((tab) => button(tab, () => route(tab)));
   nav.querySelector('.tabs').replaceChildren(...buttons);
   function render(moveFocus = false) {
@@ -172,8 +278,14 @@ const renderRecipe = (recipe) => {
       if (i === active) element.setAttribute('aria-current', 'page');
       else element.removeAttribute('aria-current');
     });
+    const isHome = active === 0;
+    heading.textContent = isHome ? 'Shake and Bake' : recipe.title;
+    document.title = heading.textContent;
+    summary.hidden = isHome;
+    summary.textContent = recipe.summary;
+    meta.hidden = isHome;
     main.replaceChildren();
-    [renderShop, renderTimeline, renderCook, renderSides][active](id);
+    [renderHome, renderShop, renderTimeline, renderCook, renderSides][active](id);
     if (moveFocus) {
       window.scrollTo(0, 0);
       if (window.matchMedia('(pointer: fine)').matches) main.querySelector('h2')?.focus({ preventScroll: true });
