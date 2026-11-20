@@ -154,8 +154,7 @@ test('Google errors distinguish request and key failures without forwarding prov
     [400, 'API_KEY_INVALID', /rejected the Gemini API key.*HTTP 400/],
     [400, undefined, /rejected the recipe parser request.*HTTP 400/],
     [403, undefined, /denied.*access.*HTTP 403/],
-    [404, undefined, /configured Gemini model.*HTTP 404/],
-    [503, undefined, /Google returned an error.*HTTP 503/]
+    [404, undefined, /configured Gemini model.*HTTP 404/]
   ];
   for (const [status, reason, expected] of cases) {
     const mock = t.mock.method(globalThis, 'fetch', async () => Response.json(
@@ -167,6 +166,36 @@ test('Google errors distinguish request and key failures without forwarding prov
     assert.doesNotMatch(error, /private provider details/);
     mock.mock.restore();
   }
+});
+
+test('Gemini HTTP 503 switches to the fallback model once within the original timeout', async (t) => {
+  for (const recovers of [true, false]) {
+    let calls = 0;
+    let signal;
+    const mock = t.mock.method(globalThis, 'fetch', async (url, options) => {
+      if (++calls === 1) {
+        signal = options.signal;
+        assert.match(url, /\/gemini-3\.1-flash-lite:generateContent$/);
+      } else {
+        assert.match(url, /\/gemini-3\.5-flash-lite:generateContent$/);
+        assert.equal(options.signal, signal);
+      }
+      return calls === 2 && recovers ? geminiResponse(sample()) : new Response(null, { status: 503 });
+    });
+    const response = await worker.fetch(request('Roast carrots'), env);
+    assert.equal(calls, 2);
+    assert.equal(response.status, recovers ? 200 : 503);
+    if (!recovers) assert.match((await response.json()).error, /temporarily unavailable/);
+    mock.mock.restore();
+  }
+});
+
+test('a Retry-After outside the import timeout does not trigger another request', async (t) => {
+  const api = t.mock.method(globalThis, 'fetch', async () =>
+    new Response(null, { status: 503, headers: { 'Retry-After': '120' } }));
+  const response = await worker.fetch(request('Roast carrots'), env);
+  assert.equal(response.status, 503);
+  assert.equal(api.mock.callCount(), 1);
 });
 
 test('a provider redirect is rejected without another request', async (t) => {
@@ -191,6 +220,7 @@ test('provider refusals and unusable or malformed outputs do not make recipes', 
     const response = await worker.fetch(request('Roast carrots'), env);
     assert.equal(response.status, status);
     assert.ok(!Object.hasOwn(await response.json(), 'recipe'));
+    assert.equal(mock.mock.callCount(), 1);
     mock.mock.restore();
   }
 });
