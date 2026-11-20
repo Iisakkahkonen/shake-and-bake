@@ -1,4 +1,4 @@
-import { extractionSchema, normalizeRecipe, RecipeError } from './recipe.mjs';
+import { geminiSchema, normalizeRecipe, RecipeError } from './recipe.mjs';
 
 const MAX_TEXT = 16_000;
 const MAX_BODY = 64 * 1024;
@@ -12,8 +12,8 @@ const SYSTEM = [
   'For a recipe, retain the source language, original quantities, temperatures, safety cautions, substitutions and the order of steps.',
   'Group the shopping list and identify separate stages for any sauces, sides and assembly. Mark sides with isSide. Do not merge quantities with incompatible units.',
   'Keep make-ahead, storage, serving, substitutions and technique tips in the relevant stage notes. Put useful notes that apply to the whole meal in reviewNotes.',
-  'Omit missing optional fields. Use reviewNotes for gaps or conflicts. Do not invent ingredients, quantities, durations, temperatures, safety claims or steps.',
-  'Keep stated durations in each stage even without a full timetable. Schedule rows use minute offsets from serving and 1-based stage numbers. Include only offsets supported by the source. Omit the schedule when timing is insufficient.',
+  'Use empty strings and arrays for missing details and false for stages that are not sides. Use reviewNotes for gaps or conflicts. Do not invent ingredients, quantities, durations, temperatures, safety claims or steps.',
+  'Keep stated durations in each stage even without a full timetable. Schedule rows use minute offsets from serving and 1-based stage numbers. Include only offsets supported by the source. Use an empty schedule when timing is insufficient.',
   'Provide dinnerTime as HH:MM only if a serving time is stated. Return only the requested structured output.'
 ].join('\n');
 
@@ -69,6 +69,27 @@ async function authorized(header, secret) {
   return difference === 0;
 }
 
+async function googleError(response) {
+  const { status } = response;
+  const payload = await response.json().catch(() => null);
+  const error = payload?.error;
+  const reasons = Array.isArray(error?.details) ? error.details.map((detail) => detail?.reason) : [];
+  if (reasons.some((reason) => ['API_KEY_INVALID', 'API_KEY_EXPIRED', 'API_KEY_NOT_FOUND'].includes(reason)) ||
+      status === 401) {
+    return new HttpError(502, 'Google rejected the Gemini API key stored in Cloudflare (HTTP ' + status + ').');
+  }
+  if (status === 403 || reasons.some((reason) =>
+    ['API_KEY_SERVICE_BLOCKED', 'API_KEY_IP_ADDRESS_BLOCKED', 'API_KEY_HTTP_REFERRER_BLOCKED', 'SERVICE_DISABLED'].includes(reason))) {
+    return new HttpError(502, 'Google denied this project or key access to the Gemini API (HTTP ' + status + ').');
+  }
+  if (status === 404) return new HttpError(502, 'Google could not find the configured Gemini model (HTTP 404).');
+  if (status === 400 && error?.status === 'FAILED_PRECONDITION') {
+    return new HttpError(502, 'Google reported that this Gemini request did not meet a project or service requirement (HTTP 400).');
+  }
+  if (status === 400) return new HttpError(502, 'Google rejected the recipe parser request (HTTP 400).');
+  return new HttpError(502, 'Google returned an error from the Gemini API (HTTP ' + status + ').');
+}
+
 async function extract(text, apiKey) {
   let response;
   try {
@@ -83,7 +104,7 @@ async function extract(text, apiKey) {
         contents: [{ role: 'user', parts: [{ text }] }],
         generationConfig: {
           responseMimeType: 'application/json',
-          responseJsonSchema: extractionSchema,
+          responseJsonSchema: geminiSchema,
           maxOutputTokens: 8192,
           temperature: 0.1
         }
@@ -97,7 +118,7 @@ async function extract(text, apiKey) {
     throw new HttpError(502, 'Gemini returned an unexpected redirect.');
   }
   if (response.status === 429) throw new HttpError(429, 'Gemini is at its quota. Try again later.');
-  if (!response.ok) throw new HttpError(502, 'Gemini is unavailable or the server key needs checking.');
+  if (!response.ok) throw await googleError(response);
   const result = await response.json().catch(() => {
     throw new HttpError(502, 'Gemini returned an unreadable response. Try again.');
   });

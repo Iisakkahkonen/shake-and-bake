@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import worker from './worker.mjs';
-import { normalizeRecipe } from './recipe.mjs';
+import { extractionSchema, normalizeRecipe } from './recipe.mjs';
 
 const origin = 'https://example.github.io';
 const code = 'test-import-code-with-at-least-32-chars';
@@ -133,6 +133,10 @@ test('Gemini gets source text in a separate message and no tools', async (t) => 
     assert.match(body.systemInstruction.parts[0].text, /untrusted source material/);
     assert.equal(body.tools, undefined);
     assert.equal(body.generationConfig.responseMimeType, 'application/json');
+    const schema = body.generationConfig.responseJsonSchema;
+    assert.equal(JSON.stringify(schema).includes('"maxItems"'), false);
+    assert.equal(extractionSchema.properties.stages.maxItems, 24);
+    assert.ok(schema.required.includes('schedule'));
     assert.ok(!init.body.includes(env.GEMINI_API_KEY));
     assert.ok(!init.body.includes(code));
     return geminiResponse(sample());
@@ -143,6 +147,26 @@ test('Gemini gets source text in a separate message and no tools', async (t) => 
   assert.equal(response.headers.get('cache-control'), 'no-store');
   assert.equal((await response.json()).recipe.title, 'Roast carrots');
   assert.equal(api.mock.callCount(), 1);
+});
+
+test('Google errors distinguish request and key failures without forwarding provider text', async (t) => {
+  const cases = [
+    [400, 'API_KEY_INVALID', /rejected the Gemini API key.*HTTP 400/],
+    [400, undefined, /rejected the recipe parser request.*HTTP 400/],
+    [403, undefined, /denied.*access.*HTTP 403/],
+    [404, undefined, /configured Gemini model.*HTTP 404/],
+    [503, undefined, /Google returned an error.*HTTP 503/]
+  ];
+  for (const [status, reason, expected] of cases) {
+    const mock = t.mock.method(globalThis, 'fetch', async () => Response.json(
+      { error: { message: 'private provider details', details: [{ reason }] } }, { status }));
+    const response = await worker.fetch(request('Roast carrots'), env);
+    assert.equal(response.status, 502);
+    const { error } = await response.json();
+    assert.match(error, expected);
+    assert.doesNotMatch(error, /private provider details/);
+    mock.mock.restore();
+  }
 });
 
 test('a provider redirect is rejected without another request', async (t) => {

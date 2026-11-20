@@ -35,6 +35,20 @@ export const extractionSchema = record({
   }), 40)
 }, ['kind']);
 
+// Keep local bounds separate from Gemini's constrained-decoding grammar.
+function forGemini(schema) {
+  if (schema.type === 'object') {
+    const properties = Object.fromEntries(
+      Object.entries(schema.properties).map(([name, field]) => [name, forGemini(field)])
+    );
+    return { ...schema, properties, required: Object.keys(properties) };
+  }
+  if (schema.type === 'array') return { type: 'array', items: forGemini(schema.items) };
+  return schema;
+}
+
+export const geminiSchema = forGemini(extractionSchema);
+
 // Accept omitted optional fields while checking types, limits and unknown fields.
 function matches(value, schema) {
   switch (schema.type) {
